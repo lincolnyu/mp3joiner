@@ -32,5 +32,34 @@ namespace Mp3Joiner
                 }
             }
         }
+
+        public void Join(IEnumerable<string> inputFileNames, string outputFileName)
+        {
+            using (var fsOut = new FileStream(outputFileName, FileMode.Create))
+            using (var bw = new BinaryWriter(fsOut))
+            {
+                foreach (var fileName in inputFileNames)
+                {
+                    if (fileName.ToLower() == outputFileName.ToLower())
+                    {
+                        continue;
+                    }
+                    using (var fs = new FileStream(fileName, FileMode.Open))
+                    using (var br = new BinaryReader(fs))
+                    {
+                        CopyMp3(br, bw);
+                    }
+                }
+            }
+        }
+
+        private void CopyMp3(BinaryReader br, BinaryWriter bw)
+        {
+            
+            while (true)
+            {
+
+            }
+        }
     }
 }

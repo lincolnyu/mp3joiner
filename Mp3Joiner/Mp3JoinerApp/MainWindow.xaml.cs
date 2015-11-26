@@ -62,7 +62,7 @@ namespace Mp3JoinerApp
         private void StartButtonOnClick(object sender, RoutedEventArgs args)
         {
             var joiner = new Joiner();
-            joiner.JoinTrivial(InputPaths, OutputPath);
+            joiner.Join(InputPaths, OutputPath);
         }
 
         private void InputPathListViewPreviewDrop(object sender, DragEventArgs args)
