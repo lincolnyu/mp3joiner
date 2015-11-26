@@ -6,53 +6,76 @@ namespace Mp3Joiner
     {
         private const int BufSize = 4096;
 
-        private const int UpperThr = 2048;
+        private const int UpperThr = 3072;
 
-        private const int LowerThr = 2048;
+        private const int LowerThr = 1024;
 
-        private byte[][] _bufs = new byte[2][] { new byte[BufSize], new byte[BufSize] };
+        /// <summary>
+        ///  dual buffer
+        /// </summary>
+        private readonly byte[][] _bufs =
+        {
+            new byte[BufSize],
+            new byte[BufSize]
+        };
 
-        private BinaryReader _br;
+        private readonly BinaryReader _br;
 
         private int _bufIndex;
 
         private long _position;
-
+        
         public ByteReader(BinaryReader br)
         {
             _br = br;
             _bufIndex = 0;
             _br.BaseStream.Position = 0;
             _position = 0;
+            FileLength = _br.BaseStream.Length;
+            IniLoad();
+        }
+
+        public long FileLength { get; private set; }
+
+        private void IniLoad()
+        {
+            var buf=_bufs[_bufIndex];
+            _br.Read(buf, 0, BufSize);
         }
 
         public byte GetAt(long at)
         {
             var offset = at - _position;
+            byte[] buf;
             if (offset < 0)
             {
                 var bi = 1 - _bufIndex;
-                var buf = _bufs[bi];
+                buf = _bufs[bi];
                 offset += BufSize;
                 if (offset < LowerThr)
                 {
                     var otherBuf = _bufs[_bufIndex];
-                    _br.BaseStream.Position = _position - BufSize - BufSize;
                     _br.Read(otherBuf, 0, BufSize);
+                    // update pointers
+                    _position -= BufSize*2;
+                    _br.BaseStream.Position = _position;
+                    _bufIndex = 1 - _bufIndex;
                 }
-                return buf[offset];
             }
             else
             {
-                var buf = _bufs[_bufIndex];
+                buf = _bufs[_bufIndex];
                 if (offset > UpperThr)
                 {
                     var otherBuf = _bufs[1 - _bufIndex];
-                    _br.BaseStream.Position = _position + BufSize;
                     _br.Read(otherBuf, 0, BufSize);
+                    // update 
+                    _position += BufSize;
+                    _br.BaseStream.Position = _position;
+                    _bufIndex = 1 - _bufIndex;
                 }
-                return buf[offset];
             }
+            return buf[offset];
         }
     }
 }
