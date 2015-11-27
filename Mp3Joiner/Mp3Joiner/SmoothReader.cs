@@ -2,7 +2,7 @@
 
 namespace Mp3Joiner
 {
-    public class ByteReader
+    public class SmoothReader
     {
         private const int BufSize = 4096;
 
@@ -25,21 +25,20 @@ namespace Mp3Joiner
 
         private long _position;
         
-        public ByteReader(BinaryReader br)
+        public SmoothReader(BinaryReader br)
         {
             _br = br;
             _bufIndex = 0;
             _br.BaseStream.Position = 0;
             _position = 0;
             FileLength = _br.BaseStream.Length;
-            IniLoad();
         }
 
         public long FileLength { get; private set; }
 
-        private void IniLoad()
+        public void Initialise()
         {
-            var buf=_bufs[_bufIndex];
+            var buf = _bufs[_bufIndex];
             _br.Read(buf, 0, BufSize);
         }
 
@@ -47,7 +46,7 @@ namespace Mp3Joiner
         {
             var offset = at - _position;
             byte[] buf;
-            if (offset < 0)
+            if (offset < 0) // read backwards
             {
                 var bi = 1 - _bufIndex;
                 buf = _bufs[bi];
@@ -55,24 +54,26 @@ namespace Mp3Joiner
                 if (offset < LowerThr)
                 {
                     var otherBuf = _bufs[_bufIndex];
-                    _br.Read(otherBuf, 0, BufSize);
                     // update pointers
                     _position -= BufSize*2;
                     _br.BaseStream.Position = _position;
                     _bufIndex = 1 - _bufIndex;
+                    // read BufSize at _position
+                    _br.Read(otherBuf, 0, BufSize);
                 }
             }
-            else
+            else // read forwards (normal)
             {
                 buf = _bufs[_bufIndex];
                 if (offset > UpperThr)
                 {
                     var otherBuf = _bufs[1 - _bufIndex];
-                    _br.Read(otherBuf, 0, BufSize);
                     // update 
                     _position += BufSize;
                     _br.BaseStream.Position = _position;
                     _bufIndex = 1 - _bufIndex;
+                    // read BufSize at _position
+                    _br.Read(otherBuf, 0, BufSize);
                 }
             }
             return buf[offset];

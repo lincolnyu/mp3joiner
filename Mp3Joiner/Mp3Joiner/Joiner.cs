@@ -55,10 +55,56 @@ namespace Mp3Joiner
 
         private void CopyMp3(BinaryReader br, BinaryWriter bw)
         {
-            
-            while (true)
+            var sr = new SmoothReader(br);
+            var len = sr.FileLength;
+            sr.Initialise();
+            var state = 0;
+            var ffcount = 0;
+            var doublefivecount = 0;
+            for (var i = 0L; i < len && state < 2; i++)
             {
-
+                var b = sr.GetAt(i);
+                switch (state)
+                {
+                    case 0:
+                        switch (b)
+                        {
+                            case 0xff:
+                                ffcount++;
+                                break;
+                            case 0xfb:
+                                if (ffcount >= 2)
+                                {
+                                    // found
+                                    bw.Write(new byte[] {0xff, 0xff, 0xfb});
+                                    state = 1;
+                                }
+                                break;
+                            default:
+                                ffcount = 0;
+                                break;
+                        }
+                        break;
+                    case 1:
+                        switch (b)
+                        {
+                            case 0x55:
+                                doublefivecount++;
+                                if (doublefivecount > 4)
+                                {
+                                    state = 2;
+                                }
+                                break;
+                            default:
+                                for (; doublefivecount > 0; doublefivecount--)
+                                {
+                                    bw.Write(0x55);
+                                }
+                                bw.Write(b);
+                                break;
+                        }
+                        break;
+                }
             }
         }
     }
