@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using Mp3Joiner;
+using System.Reflection;
 
 namespace Mp3JoinerApp
 {
@@ -19,6 +20,8 @@ namespace Mp3JoinerApp
         public MainWindow()
         {
             InitializeComponent();
+
+            SetTitle();
 
             DataContext = this;
         }
@@ -211,6 +214,28 @@ namespace Mp3JoinerApp
             {
                 var joiner = new Joiner();
                 joiner.Join(InputPaths, OutputPath);
+            }
+        }
+
+        /// <summary>
+        ///  Sets app title as per app name and version
+        /// </summary>
+        /// <remarks>
+        ///  References:
+        ///  1. http://stackoverflow.com/questions/22527830/how-to-get-the-publish-version-of-a-wpf-application
+        /// </remarks>
+        private void SetTitle()
+        {
+            try
+            {
+                var ver = System.Deployment.Application.ApplicationDeployment.CurrentDeployment.
+                    CurrentVersion;
+                Title = string.Format("{0} (Ver {1}.{2} Beta)", Strings.AppName, ver.Major, ver.Minor);
+            }
+            catch (System.Deployment.Application.InvalidDeploymentException)
+            {
+                var ver = Assembly.GetExecutingAssembly().GetName().Version;
+                Title = string.Format("{0} (Asm Ver {1}.{2} Beta)", Strings.AppName, ver.Major, ver.Minor);
             }
         }
     }
