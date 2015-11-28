@@ -5,11 +5,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Mp3JoinerApp"
         mc:Ignorable="d"
-        Title="MP3 Joiner" Height="350" Width="525">
+        Title="MP3 Joiner" Height="350" Width="525" PreviewKeyDown="WindowPreviewKeyDown">
     <Grid>
         <DockPanel LastChildFill="True">
             <Button DockPanel.Dock="Bottom" Click="StartButtonOnClick">Start</Button>
-            <DockPanel DockPanel.Dock="Bottom" LastChildFill="True">
+            <DockPanel DockPanel.Dock="Bottom" LastChildFill="True" 
+                       AllowDrop="True" PreviewDrop="OutputPathViewPreviewDrop">
                 <TextBlock DockPanel.Dock="Left">Output Path:</TextBlock>
                 <Button DockPanel.Dock="Right" Click="OutputPathBrowseButtonOnClick">...</Button>
                 <TextBox Text="{Binding OutputPath}"></TextBox>
@@ -20,6 +21,7 @@
                     <Button Click="MoveDownButtonClick">Move Down</Button>
                     <Button Click="AscendingButtonClick">Ascending</Button>
                     <Button Click="DescendingButtonClick">Descending</Button>
+                    <Button Click="DeleteButtonClick">Delete</Button>
                 </StackPanel>
                 <ListView AllowDrop="True" ItemsSource="{Binding InputPaths}"
                           SelectionMode="Extended"

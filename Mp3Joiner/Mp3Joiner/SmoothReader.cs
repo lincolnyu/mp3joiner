@@ -19,27 +19,27 @@ namespace Mp3Joiner
             new byte[BufSize]
         };
 
-        private readonly BinaryReader _br;
-
         private int _bufIndex;
 
         private long _position;
         
         public SmoothReader(BinaryReader br)
         {
-            _br = br;
+            BaseReader = br;
             _bufIndex = 0;
-            _br.BaseStream.Position = 0;
+            BaseReader.BaseStream.Position = 0;
             _position = 0;
-            FileLength = _br.BaseStream.Length;
+            FileLength = BaseReader.BaseStream.Length;
         }
+
+        public BinaryReader BaseReader { get; private set; }
 
         public long FileLength { get; private set; }
 
         public void Initialise()
         {
             var buf = _bufs[_bufIndex];
-            _br.Read(buf, 0, BufSize);
+            BaseReader.Read(buf, 0, BufSize);
         }
 
         public byte GetAt(long at)
@@ -56,10 +56,10 @@ namespace Mp3Joiner
                     var otherBuf = _bufs[_bufIndex];
                     // update pointers
                     _position -= BufSize*2;
-                    _br.BaseStream.Position = _position;
+                    BaseReader.BaseStream.Position = _position;
                     _bufIndex = 1 - _bufIndex;
                     // read BufSize at _position
-                    _br.Read(otherBuf, 0, BufSize);
+                    BaseReader.Read(otherBuf, 0, BufSize);
                 }
             }
             else // read forwards (normal)
@@ -70,10 +70,10 @@ namespace Mp3Joiner
                     var otherBuf = _bufs[1 - _bufIndex];
                     // update 
                     _position += BufSize;
-                    _br.BaseStream.Position = _position;
+                    BaseReader.BaseStream.Position = _position;
                     _bufIndex = 1 - _bufIndex;
                     // read BufSize at _position
-                    _br.Read(otherBuf, 0, BufSize);
+                    BaseReader.Read(otherBuf, 0, BufSize);
                 }
             }
             return buf[offset];

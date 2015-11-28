@@ -61,8 +61,7 @@ namespace Mp3JoinerApp
 
         private void StartButtonOnClick(object sender, RoutedEventArgs args)
         {
-            var joiner = new Joiner();
-            joiner.Join(InputPaths, OutputPath);
+            Start();
         }
 
         private void InputPathListViewPreviewDrop(object sender, DragEventArgs args)
@@ -81,6 +80,19 @@ namespace Mp3JoinerApp
                 }
             }
             args.Handled = true;
+        }
+
+        private void OutputPathViewPreviewDrop(object sender, DragEventArgs args)
+        {
+            var paths = args.Data.GetFormats().Select(f => args.Data.GetData(f)).OfType<string[]>().FirstOrDefault();
+            if (paths != null)
+            {
+                var path = paths.FirstOrDefault();
+                if (path != null)
+                {
+                    OutputPath = path;
+                }
+            }
         }
 
         private void MoveUpButtonClick(object sender, RoutedEventArgs e)
@@ -168,6 +180,37 @@ namespace Mp3JoinerApp
             foreach (var obj in objs)
             {
                 InputPaths.Add(obj);
+            }
+        }
+
+        private void DeleteButtonClick(object sender, RoutedEventArgs e)
+        {
+            var delList = new List<string>();
+            foreach (var item in InputPathsList.SelectedItems.OfType<string>())
+            {
+                delList.Add(item);
+            }
+            foreach (var del in delList)
+            {
+                InputPaths.Remove(del);
+            }
+        }
+
+        private void WindowPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                Start();
+                e.Handled = true;
+            }
+        }
+
+        private void Start()
+        {
+            if (InputPaths.Count > 0 && OutputPath != null && File.Exists(OutputPath))
+            {
+                var joiner = new Joiner();
+                joiner.Join(InputPaths, OutputPath);
             }
         }
     }
