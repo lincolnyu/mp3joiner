@@ -13,7 +13,7 @@
                        AllowDrop="True" PreviewDrop="OutputPathViewPreviewDrop">
                 <TextBlock DockPanel.Dock="Left">Output Path:</TextBlock>
                 <Button DockPanel.Dock="Right" Click="OutputPathBrowseButtonOnClick">...</Button>
-                <TextBox Text="{Binding OutputPath}"></TextBox>
+                <TextBox Text="{Binding OutputPath, UpdateSourceTrigger=PropertyChanged}" PreviewKeyDown="OutputPathTextPreviewKeyDown"></TextBox>
             </DockPanel>
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Right">

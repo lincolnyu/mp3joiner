@@ -120,4 +120,7 @@
   <data name="AppName" xml:space="preserve">
     <value>MP3 Joiner</value>
   </data>
+  <data name="OverwritingFileWarning" xml:space="preserve">
+    <value>Output file already exists, do you want to overwrite it?</value>
+  </data>
 </root>

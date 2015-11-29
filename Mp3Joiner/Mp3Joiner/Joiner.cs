@@ -7,6 +7,7 @@ namespace Mp3Joiner
     public class Joiner
     {
         // NOTE we assume its Xing and the field offsets are pre-determined and fixed
+        const long XingOffset = 0x24;
         const long SamplesOffset = 0x2c;
         const long LengthOffset = 0x30;
 
@@ -50,6 +51,7 @@ namespace Mp3Joiner
             {
                 uint totalSamples = 0;
                 uint totalLength = 0;
+                var doXing = true;
                 for (var i = 0; i< inputFileNames.Count; i++)
                 {
                     var fileName = inputFileNames[i];
@@ -62,20 +64,25 @@ namespace Mp3Joiner
                     {
                         var isFirst = i == 0;
                         uint length, samples;
-                        CopyMp3(br, bw, isFirst, out length, out samples);
+                        bool isXing;
+                        CopyMp3(br, bw, isFirst, out isXing, out length, out samples);
+                        doXing = doXing && isXing;
                         totalSamples += samples;
                         totalLength += length;
                     }
                 }
-                bw.BaseStream.Position = SamplesOffset;
-                bw.Write(SetUInt(totalSamples));
-                bw.BaseStream.Position = LengthOffset;
-                bw.Write(SetUInt(totalLength));
+                if (doXing)
+                {
+                    bw.BaseStream.Position = SamplesOffset;
+                    bw.Write(SetUInt(totalSamples));
+                    bw.BaseStream.Position = LengthOffset;
+                    bw.Write(SetUInt(totalLength));
+                }
             }
         }
 
         private void CopyMp3(BinaryReader br, BinaryWriter bw, bool writeInfoFrame,
-            out uint length, out uint samples)
+            out bool isXing, out uint length, out uint samples)
         {
             var sr = new SmoothReader(br);
             var len = sr.FileLength;
@@ -84,12 +91,21 @@ namespace Mp3Joiner
             int i = 0;
             var obw = writeInfoFrame ? bw : null;
             var headerFound = FindAndProcessFirstHeader(sr, ref i, len, obw, null);
+            var firstHeaderEnd = i;
             if (!headerFound)
             {
                 throw new FormatException("MP3 frame header not found");
             }
 
-            ProcessFirstFrame(sr, ref i, len, obw, out length, out samples);
+            ProcessFirstFrame(sr, ref i, len, obw, out isXing, out length, out samples);
+
+            if (!isXing && obw == null)
+            {
+                // write the frame as it's not xing
+                i = firstHeaderEnd - 4;// move back to first header
+                FindAndProcessFirstHeader(sr, ref i, len, bw, null);
+                ProcessFirstFrame(sr, ref i, len, bw, out isXing, out length, out samples);
+            }
             
             while(AdvanceToBeforeNextHeader(sr, ref i, len, bw)) { }
         }
@@ -144,84 +160,95 @@ namespace Mp3Joiner
         /// <param name="i"></param>
         /// <param name="len"></param>
         /// <param name="bw"></param>
+        /// <param name="isXing"></param>
         /// <param name="length"></param>
         /// <param name="samples"></param>
         /// <returns></returns>
         private static bool ProcessFirstFrame(SmoothReader sr, ref int i, long len,
-            BinaryWriter bw, out uint length, out uint samples)
+            BinaryWriter bw, out bool isXing, out uint length, out uint samples)
         {
             var headerFound = false;
+
+            // unfortunately due to lack of MP3 format decoding capability for the moment
+            // we have to rely on the hardcoded offset for only Xing typed encoding
+            var xingOffset = i + XingOffset - 4;
             var samplesOffset = i + SamplesOffset - 4;
             var lengthOffset = i + LengthOffset - 4;
+
+            isXing = false;
             length = samples = 0;
             var start = i; // excluding the start
             for (; !headerFound && i < len; i++)
             {
-                if (i == samplesOffset)
+                byte[] bytes = null;
+                if (i <= lengthOffset && i + 4 < len)
                 {
-                    var bytes = LoadFourBytes(sr, i);
-                    samples = GetUInt(bytes);
-                    if (bw != null)
+                    if (i == xingOffset)
                     {
-                        foreach (var b in bytes)
-                        {
-                            bw.Write(b);
-                        }
+                        bytes = LoadFourBytes(sr, i);
+                        isXing = bytes[0] == 'X' && bytes[1] == 'i' && bytes[2] == 'n' && bytes[3] == 'g';
                     }
-                    i += 3;
-                }
-                else if (i == lengthOffset)
-                {
-                    var bytes = LoadFourBytes(sr, i);
-                    length = GetUInt(bytes);
-                    if (bw != null)
+                    else if (i == samplesOffset && isXing)
                     {
-                        foreach (var b in bytes)
-                        {
-                            bw.Write(b);
-                        }
+                        bytes = LoadFourBytes(sr, i);
+                        samples = GetUInt(bytes);
                     }
-                    i += 3;
-                }
-                else
-                {
-                    var b = sr.GetAt(i);
-                    if (b == 'T' && i > len - TagPossibleRegion)
+                    else if (i == lengthOffset && isXing)
                     {
-                        if (i < len - 2)
+                        bytes = LoadFourBytes(sr, i);
+                        length = GetUInt(bytes);
+                    }
+
+                    if (bytes != null)
+                    {
+                        if (bw != null)
                         {
-                            var b2 = sr.GetAt(++i);
-                            var b3 = sr.GetAt(++i);
-                            if (b2 == 'A' && b3 == 'G')
+                            foreach (var bb in bytes)
                             {
-                                i -= 2;
-                                return false;// end of frame, TAG not to be included
-                            }
-                            else if (bw != null)
-                            {
-                                bw.Write(b);
-                                bw.Write(b2);
-                                bw.Write(b3);
+                                bw.Write(bb);
                             }
                         }
+                        i += 3;
+                        continue;
                     }
-                    else if (b == 0xff)
+                }
+
+                var b = sr.GetAt(i);
+                if (b == 'T' && i > len - TagPossibleRegion)
+                {
+                    if (i < len - 2)
                     {
-                        var b2 = sr.GetAt(i+1);
-                        if ((b2 >> 5) == 0x07 && b2 != 0xff)
+                        var b2 = sr.GetAt(++i);
+                        var b3 = sr.GetAt(++i);
+                        if (b2 == 'A' && b3 == 'G')
                         {
-                            // another header
-                            return true;
+                            i -= 2;
+                            return false;// end of frame, TAG not to be included
                         }
                         else if (bw != null)
                         {
                             bw.Write(b);
+                            bw.Write(b2);
+                            bw.Write(b3);
                         }
+                    }
+                }
+                else if (b == 0xff)
+                {
+                    var b2 = sr.GetAt(i + 1);
+                    if ((b2 >> 5) == 0x07 && b2 != 0xff)
+                    {
+                        // another header
+                        return true;
                     }
                     else if (bw != null)
                     {
                         bw.Write(b);
                     }
+                }
+                else if (bw != null)
+                {
+                    bw.Write(b);
                 }
             }
             return false;

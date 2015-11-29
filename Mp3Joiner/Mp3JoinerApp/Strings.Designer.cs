@@ -68,5 +68,14 @@ namespace Mp3JoinerApp {
                 return ResourceManager.GetString("AppName", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Output file already exists, do you want to overwrite it?.
+        /// </summary>
+        internal static string OverwritingFileWarning {
+            get {
+                return ResourceManager.GetString("OverwritingFileWarning", resourceCulture);
+            }
+        }
     }
 }

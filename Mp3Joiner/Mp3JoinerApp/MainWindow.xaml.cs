@@ -7,6 +7,8 @@ using System.Linq;
 using System.Windows;
 using Mp3Joiner;
 using System.Reflection;
+using System.Windows.Input;
+using System;
 
 namespace Mp3JoinerApp
 {
@@ -72,10 +74,17 @@ namespace Mp3JoinerApp
             var added = false;
             foreach (var ss in args.Data.GetFormats().Select(f => args.Data.GetData(f)).OfType<string[]>())
             {
-                foreach (var s in ss.Where(File.Exists))
+                foreach (var s in ss)
                 {
-                    InputPaths.Add(s);
-                    added = true;
+                    if (File.Exists(s) && Path.GetExtension(s).ToLower() == ".mp3")
+                    {
+                        InputPaths.Add(s);
+                        added = added || true;
+                    }
+                    else if (Directory.Exists(s))
+                    {
+                        added = added || AddMp3InFolder(s);
+                    }
                 }
                 if (added)
                 {
@@ -83,6 +92,18 @@ namespace Mp3JoinerApp
                 }
             }
             args.Handled = true;
+        }
+
+        private bool AddMp3InFolder(string s)
+        {
+            var dir = new DirectoryInfo(s);
+            var result = false;
+            foreach (var f in dir.GetFiles().Where(x=>x.Extension.ToLower()==".mp3"))
+            {
+                InputPaths.Add(f.FullName);
+                result = true;
+            }
+            return result;
         }
 
         private void OutputPathViewPreviewDrop(object sender, DragEventArgs args)
@@ -198,10 +219,18 @@ namespace Mp3JoinerApp
                 InputPaths.Remove(del);
             }
         }
-
-        private void WindowPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void OutputPathTextPreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == System.Windows.Input.Key.Enter)
+            if (e.Key == Key.Enter)
+            {
+                Start();
+                e.Handled = true;
+            }
+        }
+        
+        private void WindowPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
             {
                 Start();
                 e.Handled = true;
@@ -210,8 +239,15 @@ namespace Mp3JoinerApp
 
         private void Start()
         {
-            if (InputPaths.Count > 0 && OutputPath != null && File.Exists(OutputPath))
+            if (InputPaths.Count > 0 && OutputPath != null)
             {
+                if (File.Exists(OutputPath))
+                {
+                    if (MessageBox.Show(Strings.OverwritingFileWarning, Strings.AppName) != MessageBoxResult.Yes)
+                    {
+                        return;
+                    }
+                }
                 var joiner = new Joiner();
                 joiner.Join(InputPaths, OutputPath);
             }
